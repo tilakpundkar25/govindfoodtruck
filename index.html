@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Govind Food Truck Management</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Firebase SDK from CDN -->
+    <script defer src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.7.0/firebase-analytics-compat.js"></script>
+    <style>
+        :root {
+            --primary: #60a5fa;
+            --secondary: #1e40af;
+            --bg: #edf2f7;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            background: radial-gradient(circle at top left, rgba(96,165,250,0.25), transparent 28%),
+                        linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .login-screen, .app-screen { width: 100%; display: none; }
+        .login-screen.active, .app-screen.active { display: block; }
+        .auth-layout {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 48px 24px;
+            display: grid;
+            gap: 24px;
+        }
+        .tabs {
+            display: flex;
+            gap: 12px;
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            z-index: 2;
+        }
+        .tab-button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 12px;
+            background: rgba(30,64,175,0.12);
+            color: var(--secondary);
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s ease;
+        }
+        .tab-button.active {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #fff;
+        }
+        .auth-card {
+            background: rgba(255,255,255,0.96);
+            border-radius: 28px;
+            box-shadow: var(--shadow);
+            padding: 32px;
+            position: relative;
+        }
+        .auth-card h2 {
+            margin-top: 0;
+            margin-bottom: 16px;
+            color: var(--secondary);
+        }
+        .auth-field {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+        .auth-field label {
+            font-size: 0.95rem;
+            color: var(--muted);
+        }
+        .auth-field input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            font-size: 1rem;
+        }
+        button.primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            color: #fff;
+            padding: 14px 20px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-weight: 700;
+            width: 100%;
+        }
+        button.secondary {
+            background: transparent;
+            border: 1px solid #cbd5e1;
+            color: var(--secondary);
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 16px;
+            cursor: pointer;
+        }
+        .message {
+            margin-top: 12px;
+            min-height: 20px;
+            color: #dc2626;
+        }
+        .app-shell {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: 100vh;
+        }
+        .sidebar {
+            background: linear-gradient(180deg, rgba(96,165,250,0.97), rgba(30,64,175,0.97));
+            padding: 28px 22px;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .sidebar .logo {
+            font-size: 1.45rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            margin-bottom: 14px;
+        }
+        .sidebar .user-welcome {
+            margin-bottom: 26px;
+            line-height: 1.6;
+        }
+        .nav-items {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .nav-item {
+            padding: 14px 16px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s ease;
+        }
+        .nav-item.active, .nav-item:hover {
+            background: rgba(255,255,255,0.22);
+        }
+        .sidebar .bottom-action {
+            margin-top: 32px;
+            display: grid;
+            gap: 12px;
+        }
+        .main-panel {
+            background: #f8fafc;
+            padding: 28px 34px;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+        .panel-header h1 {
+            margin: 0;
+            font-size: 2rem;
+            color: var(--secondary);
+        }
+        .panel-subtitle {
+            color: var(--muted);
+            margin-top: 8px;
+        }
+        .panel-card {
+            background: white;
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .form-grid {
+            display: grid;
+            gap: 16px;
+        }
+        .form-grid label {
+            font-size: 0.95rem;
+            color: var(--muted);
+        }
+        .form-grid input, .form-grid select, .form-grid textarea {
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid #d1d5db;
+            padding: 12px 14px;
+            font-size: 1rem;
+            background: #f8fafc;
+        }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        .table th, .table td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+        }
+        .table th {
+            font-weight: 700;
+            color: var(--secondary);
+        }
+        .table tbody tr:hover {
+            background: #eef2ff;
+        }
+        .tag {
+            display: inline-flex;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            background: rgba(96,165,250,0.18);
+            color: var(--secondary);
+        }
+        .light-card {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 22px;
+            box-shadow: var(--shadow);
+        }
+        .small-note {
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+        .full-width { width: 100%; }
+        .top-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .hidden { display: none; }
+        .center-text { text-align: center; }
+        .button-row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .button-row button { flex: 1; }
+        .error-text { color: #b91c1c; margin-top: 8px; }
+        @media (max-width: 900px) {
+            .app-shell { grid-template-columns: 1fr; }
+            .sidebar { flex-direction: row; overflow-x: auto; min-height: auto; padding: 18px; }
+            .nav-items { flex-direction: row; overflow-x: auto; }
+            .nav-item { white-space: nowrap; }
+            .sidebar .bottom-action { margin-top: 0; }
+            .main-panel { padding: 20px 16px; }
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-screen active" id="loginScreen">
+        <div class="tabs">
+            <button class="tab-button active" id="loginTab">Login</button>
+            <button class="tab-button" id="registerTab">Register</button>
+        </div>
+        <div class="auth-layout">
+            <div class="auth-card" id="loginCard">
+                <h2>Welcome back to Govind Food Truck</h2>
+                <div class="auth-field">
+                    <label for="loginName">Email</label>
+                    <input id="loginName" type="email" placeholder="Enter your email" />
+                </div>
+                <div class="auth-field">
+                    <label for="loginPasskey">Password</label>
+                    <input id="loginPasskey" type="password" placeholder="Enter your password" />
+                </div>
+                <button class="primary" id="loginButton">Log In</button>
+                <div class="message" id="loginMessage"></div>
+            </div>
+            <div class="auth-card hidden" id="registerCard">
+                <h2>Create a new account</h2>
+                <div class="auth-field">
+                    <label for="registerName">Full Name</label>
+                    <input id="registerName" type="text" placeholder="Your full name" />
+                </div>
+                <div class="auth-field">
+                    <label for="registerEmail">Email</label>
+                    <input id="registerEmail" type="email" placeholder="yourname@gmail.com" />
+                </div>
+                <div class="auth-field">
+                    <label for="registerPassword">Password</label>
+                    <input id="registerPassword" type="password" placeholder="Choose a strong password" />
+                </div>
+                <button class="primary" id="registerButton">Register</button>
+                <div class="message" id="registerMessage"></div>
+            </div>
+        </div>
+    </div>
+    <div class="app-screen" id="appScreen">
+        <div class="app-shell">
+            <aside class="sidebar">
+                <div>
+                    <div class="logo">Govind Food Truck</div>
+                    <div class="user-welcome" id="userWelcome">Good to see you.</div>
+                    <div class="nav-items" id="navItems">
+                        <div class="nav-item active" data-section="inventorySection">Inventory</div>
+                        <div class="nav-item" data-section="stockSection">Stock Request</div>
+                        <div class="nav-item" data-section="billingSection">Billing</div>
+                        <div class="nav-item" data-section="supportSection">Support</div>
+                    </div>
+                </div>
+                <div class="bottom-action">
+                    <button class="primary full-width" id="upgradeButton">Upgrade Role</button>
+                    <button class="secondary full-width" id="logoutButton">Log Out</button>
+                </div>
+            </aside>
+            <main class="main-panel">
+                <div class="panel-header">
+                    <div>
+                        <h1 id="panelTitle">Inventory</h1>
+                        <div class="panel-subtitle" id="panelSubtitle">Manage current stock and replenish items.</div>
+                    </div>
+                    <div class="tag" id="roleBadge">User</div>
+                </div>
+                <section id="inventorySection" class="panel-card section-card">
+                    <div class="top-info">
+                        <div>
+                            <h2>Inventory</h2>
+                            <p class="small-note">Add and track the stock you currently have in the truck.</p>
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="light-card">
+                            <h3>Add Stock</h3>
+                            <div class="form-grid">
+                                <label for="stockName">Item name</label>
+                                <input id="stockName" type="text" placeholder="e.g. Samosa" />
+                                <label for="stockQuantity">Quantity</label>
+                                <input id="stockQuantity" type="number" min="1" placeholder="Enter quantity" />
+                                <button class="primary" id="addStockButton">Add stock</button>
+                                <div class="error-text" id="stockMessage"></div>
+                            </div>
+                        </div>
+                        <div class="light-card">
+                            <h3>Current inventory</h3>
+                            <table class="table" id="inventoryTable">
+                                <thead>
+                                    <tr><th>S.NO</th><th>Item</th><th>Quantity</th></tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                            <p class="small-note">Inventory is saved locally and available on return.</p>
+                        </div>
+                    </div>
+                </section>
+                <section id="stockSection" class="panel-card section-card hidden">
+                    <div class="top-info">
+                        <div>
+                            <h2>Stock Requests</h2>
+                            <p class="small-note">Request missing items and let the admin see requests.</p>
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="light-card">
+                            <h3>Request new stock</h3>
+                            <div class="form-grid">
+                                <label for="requestItem">Item name</label>
+                                <input id="requestItem" type="text" placeholder="Item to request" />
+                                <label for="requestQty">Quantity</label>
+                                <input id="requestQty" type="number" min="1" placeholder="Requested quantity" />
+                                <button class="primary" id="submitRequestButton">Send request</button>
+                                <div class="error-text" id="requestMessage"></div>
+                            </div>
+                        </div>
+                        <div class="light-card">
+                            <h3>Requests</h3>
+                            <table class="table" id="requestTable">
+                                <thead><tr><th>#</th><th>Item</th><th>Qty</th><th>User</th><th>Status</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+                <section id="billingSection" class="panel-card section-card hidden">
+                    <div class="top-info">
+                        <div>
+                            <h2>Billing</h2>
+                            <p class="small-note">Create bills, print invoices, and let admin manage menu prices.</p>
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="light-card">
+                            <h3>Menu items</h3>
+                            <table class="table" id="menuTable">
+                                <thead><tr><th>#</th><th>Item</th><th>Price</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                            <div class="small-note">Menu prices are added and edited by the admin.</div>
+                        </div>
+                        <div class="light-card">
+                            <h3>Build bill</h3>
+                            <div class="form-grid">
+                                <label for="customerName">Customer name</label>
+                                <input id="customerName" type="text" placeholder="Enter customer name" />
+                                <label for="customerMobile">Customer mobile</label>
+                                <input id="customerMobile" type="tel" inputmode="tel" placeholder="+911234567890" />
+                                <p class="small-note">If mobile is entered, an e-bill will be opened for WhatsApp delivery.</p>
+                                <label for="selectItem">Choose item</label>
+                                <select id="selectItem"></select>
+                                <label for="itemQty">Quantity</label>
+                                <input id="itemQty" type="number" min="1" value="1" />
+                                <label for="paymentMode">Payment mode</label>
+                                <select id="paymentMode">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Card">Card</option>
+                                    <option value="UPI">UPI</option>
+                                </select>
+                                <button class="primary" id="addToCartButton">Add to bill</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="light-card">
+                        <h3>Current bill</h3>
+                        <table class="table" id="cartTable">
+                            <thead><tr><th>#</th><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="top-info" style="margin-top:18px; gap: 10px;">
+                            <strong>Total Amount: </strong>
+                            <span id="billTotal">₹0</span>
+                        </div>
+                        <div class="button-row" style="margin-top:18px;">
+                            <button class="primary" id="printBillButton">Print bill</button>
+                            <button class="secondary" id="clearBillButton">Clear bill</button>
+                        </div>
+                        <div class="error-text" id="billMessage"></div>
+                    </div>
+                    <div class="light-card hidden" id="adminMenuEditor">
+                        <h3>Admin: Manage menu</h3>
+                        <div class="grid-2">
+                            <div class="form-grid">
+                                <label for="menuItemName">Item name</label>
+                                <input id="menuItemName" type="text" placeholder="Example: Fried Rice" />
+                                <label for="menuItemPrice">Price</label>
+                                <input id="menuItemPrice" type="number" min="1" placeholder="Price in ₹" />
+                            </div>
+                            <div class="form-grid">
+                                <button class="primary" id="addMenuItemButton">Add item</button>
+                                <button class="secondary" id="saveMenuEditButton">Update selected item</button>
+                            </div>
+                        </div>
+                        <div class="small-note">Admin can add or edit menu items that the user sees in billing.</div>
+                    </div>
+                    <div class="light-card">
+                        <h3>Bill history</h3>
+                        <table class="table" id="billHistoryTable">
+                            <thead><tr><th>Bill No</th><th>Customer</th><th>Mobile</th><th>User</th><th>Items</th><th>Total</th><th>Date</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+                <section id="supportSection" class="panel-card section-card hidden">
+                    <div class="top-info">
+                        <div>
+                            <h2>Support</h2>
+                            <p class="small-note">Send your issues directly to the admin team.</p>
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="light-card">
+                            <h3>Submit a problem</h3>
+                            <div class="form-grid">
+                                <label for="supportMessageInput">Describe your issue</label>
+                                <textarea id="supportMessageInput" rows="5" placeholder="Write the problem you are facing."></textarea>
+                                <button class="primary" id="sendSupportButton">Send issue</button>
+                                <div class="error-text" id="supportMessage"></div>
+                            </div>
+                        </div>
+                        <div class="light-card">
+                            <h3>Issue history</h3>
+                            <table class="table" id="supportTable">
+                                <thead><tr><th>#</th><th>User</th><th>Issue</th><th>Date</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+    <script>
+        // Wait for Firebase to load from CDN
+        let firebaseInitialized = false;
+
+        function waitForFirebase() {
+            if (typeof firebase === 'undefined') {
+                setTimeout(waitForFirebase, 100);
+                return;
+            }
+
+            // Firebase Configuration
+            const firebaseConfig = {
+                apiKey: "AIzaSyCNvh-RgqczWVtQDvFffOo6ogxgfoRNqxo",
+                authDomain: "gft1-e6663.firebaseapp.com",
+                projectId: "gft1-e6663",
+                storageBucket: "gft1-e6663.firebasestorage.app",
+                messagingSenderId: "264993124608",
+                appId: "1:264993124608:web:6a17ec51831d4ce34583e5",
+                measurementId: "G-3TTCE3SZPQ",
+                databaseURL: "https://gft1-e6663-default-rtdb.asia-southeast1.firebasedatabase.app"
+            };
+
+            try {
+                firebase.initializeApp(firebaseConfig);
+                console.log("Firebase initialized successfully!");
+                firebaseInitialized = true;
+                database = firebase.database();
+
+                // Setup auth state listener
+                firebase.auth().onAuthStateChanged(async (user) => {
+                    if (user) {
+                        console.log("User logged in:", user.email);
+                        db = await loadUserData(user.uid);
+                        setUser(user);
+                    } else {
+                        console.log("User logged out");
+                        setUser(null);
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase error:", error);
+            }
+        }
+
+        let db = null;
+        let database;
+        let currentUser = null;
+        let currentSection = 'inventorySection';
+        let currentCart = [];
+        let editingMenuItem = null;
+
+        function setUser(user) {
+            if (user) {
+                currentUser = user;
+                document.getElementById('loginScreen').classList.remove('active');
+                document.getElementById('appScreen').classList.add('active');
+                document.getElementById('userWelcome').textContent = `Hello, ${user.displayName || user.email}. Ready to go!`;
+                updateRoleUI();
+                document.getElementById('billingSection').querySelector('.small-note').textContent = 'Select items and print your bill from the available menu.';
+                renderAll();
+                showSection(currentSection);
+                // Set up real-time listener for data changes
+                database.ref(`users/${user.uid}`).on('value', async (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        db = {
+                            ...getDefaultDB(),
+                            ...data
+                        };
+                        updateRoleUI();
+                    }
+                });
+            } else {
+                currentUser = null;
+                document.getElementById('loginScreen').classList.add('active');
+                document.getElementById('appScreen').classList.remove('active');
+                // Unsubscribe from real-time listener
+                if (currentUser) {
+                    database.ref(`users/${currentUser.uid}`).off();
+                }
+            }
+        }
+
+        function updateRoleUI() {
+            document.getElementById('roleBadge').textContent = db.role === 'admin' ? 'Admin' : 'User';
+            if (db.role === 'admin') {
+                document.getElementById('adminMenuEditor').classList.remove('hidden');
+            } else {
+                document.getElementById('adminMenuEditor').classList.add('hidden');
+            }
+        }
+
+        waitForFirebase();
+    </script>
+    <script>
+        // Load default database structure
+        function getDefaultDB() {
+            return {
+                items: [
+                    { id: 'burger', name: 'Veg Burger', price: 80 },
+                    { id: 'paneer-sandwich', name: 'Paneer Sandwich', price: 120 },
+                    { id: 'cooldrink', name: 'Cool Drink', price: 40 },
+                    { id: 'chowmein', name: 'Veg Chowmein', price: 90 }
+                ],
+                inventory: [],
+                stockRequests: [],
+                bills: [],
+                supportMessages: [],
+                role: 'user'
+            };
+        }
+
+        // Load user data from Realtime Database
+        async function loadUserData(uid) {
+            try {
+                const snapshot = await database.ref(`users/${uid}`).once('value');
+                const data = snapshot.val();
+                if (data) {
+                    return {
+                        ...getDefaultDB(),
+                        ...data,
+                        role: data.role || 'user',
+                        inventory: data.inventory || [],
+                        stockRequests: data.stockRequests || [],
+                        bills: data.bills || [],
+                        supportMessages: data.supportMessages || []
+                    };
+                } else {
+                    return getDefaultDB();
+                }
+            } catch (error) {
+                console.error("Error loading user data:", error);
+                return getDefaultDB();
+            }
+        }
+
+        // Save database to Firebase Realtime Database
+        async function saveDB() {
+            if (!currentUser) return;
+            try {
+                await database.ref(`users/${currentUser.uid}`).update({
+                    items: db.items,
+                    inventory: db.inventory,
+                    stockRequests: db.stockRequests,
+                    bills: db.bills,
+                    supportMessages: db.supportMessages,
+                    role: db.role || 'user',
+                    email: currentUser.email,
+                    name: currentUser.displayName || "User"
+                });
+                console.log("Data saved to Firebase");
+            } catch (error) {
+                console.error("Error saving data:", error);
+            }
+        }
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section-card').forEach(section => {
+                section.classList.toggle('hidden', section.id !== sectionId);
+            });
+            document.querySelectorAll('.nav-item').forEach(button => {
+                button.classList.toggle('active', button.dataset.section === sectionId);
+            });
+            const panelTitle = document.getElementById('panelTitle');
+            const panelSubtitle = document.getElementById('panelSubtitle');
+            const titles = {
+                inventorySection: ['Inventory', 'Manage current stock and replenish items.'],
+                stockSection: ['Stock Request', 'Submit or review pending stock requests.'],
+                billingSection: ['Billing', 'Create bills and print invoices for customers.'],
+                supportSection: ['Support', 'Send issues to the admin team.']
+            };
+            const title = titles[sectionId] || titles.inventorySection;
+            panelTitle.textContent = title[0];
+            panelSubtitle.textContent = title[1];
+            currentSection = sectionId;
+        }
+
+        function capitalize(value) {
+            return String(value).charAt(0).toUpperCase() + String(value).slice(1);
+        }
+
+        function renderInventory() {
+            const body = document.querySelector('#inventoryTable tbody');
+            body.innerHTML = '';
+            db.inventory.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${index + 1}</td><td>${item.name}</td><td>${item.quantity}</td>`;
+                body.appendChild(row);
+            });
+            if (db.inventory.length === 0) {
+                body.innerHTML = '<tr><td colspan="3" class="center-text">No stock saved yet.</td></tr>';
+            }
+        }
+
+        function renderRequests() {
+            const body = document.querySelector('#requestTable tbody');
+            body.innerHTML = '';
+            const userName = currentUser.displayName || currentUser.email;
+            const requests = db.stockRequests.filter(r => r.user === userName);
+            requests.forEach((request, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${index + 1}</td><td>${request.item}</td><td>${request.quantity}</td><td>${request.user}</td><td>${request.status}</td>`;
+                body.appendChild(row);
+            });
+            if (requests.length === 0) {
+                body.innerHTML = '<tr><td colspan="5" class="center-text">No requests yet.</td></tr>';
+            }
+        }
+
+        function renderMenu() {
+            const tbody = document.querySelector('#menuTable tbody');
+            tbody.innerHTML = '';
+            const select = document.getElementById('selectItem');
+            select.innerHTML = '';
+            db.items.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${index + 1}</td><td>${item.name}</td><td>₹${item.price}</td>`;
+                tbody.appendChild(row);
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = `${item.name} — ₹${item.price}`;
+                select.appendChild(option);
+            });
+            if (db.items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="center-text">No menu items available.</td></tr>';
+                select.innerHTML = '<option value="">No items</option>';
+            }
+        }
+
+        function renderCart() {
+            const body = document.querySelector('#cartTable tbody');
+            body.innerHTML = '';
+            let total = 0;
+            currentCart.forEach((line, index) => {
+                const rowTotal = line.price * line.quantity;
+                total += rowTotal;
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${index + 1}</td><td>${line.name}</td><td>${line.quantity}</td><td>₹${line.price}</td><td>₹${rowTotal}</td>`;
+                body.appendChild(row);
+            });
+            if (currentCart.length === 0) {
+                body.innerHTML = '<tr><td colspan="5" class="center-text">Add items to the bill list.</td></tr>';
+            }
+            document.getElementById('billTotal').textContent = `₹${total}`;
+        }
+
+        function renderSupport() {
+            const body = document.querySelector('#supportTable tbody');
+            body.innerHTML = '';
+            const userName = currentUser.displayName || currentUser.email;
+            const messages = db.supportMessages.filter(m => m.user === userName);
+            messages.forEach((message, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${index + 1}</td><td>${message.user}</td><td>${message.text}</td><td>${new Date(message.date).toLocaleString()}</td>`;
+                body.appendChild(row);
+            });
+            if (messages.length === 0) {
+                body.innerHTML = '<tr><td colspan="4" class="center-text">No issues have been submitted.</td></tr>';
+            }
+        }
+
+        function renderBillHistory() {
+            const body = document.querySelector('#billHistoryTable tbody');
+            body.innerHTML = '';
+            const userName = currentUser.displayName || currentUser.email;
+            const bills = db.bills.filter(b => b.user === userName);
+            bills.forEach((bill) => {
+                const row = document.createElement('tr');
+                const itemNames = bill.items.map(item => `${item.name} (${item.quantity})`).join(', ');
+                row.innerHTML = `<td>${bill.billNo || String(bills.indexOf(bill) + 1).padStart(4, '0')}</td><td>${bill.customerName || '-'}</td><td>${bill.customerMobile || '-'}</td><td>${bill.user}</td><td>${itemNames}</td><td>₹${bill.total}</td><td>${new Date(bill.date).toLocaleDateString()}</td>`;
+                body.appendChild(row);
+            });
+            if (bills.length === 0) {
+                body.innerHTML = '<tr><td colspan="7" class="center-text">No bills have been generated yet.</td></tr>';
+            }
+        }
+
+        function renderAll() {
+            renderInventory();
+            renderRequests();
+            renderMenu();
+            renderCart();
+            renderSupport();
+            renderBillHistory();
+        }
+
+        function showMessage(elementId, message, color = '#dc2626') {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            if (message) {
+                setTimeout(() => {
+                    if (el.textContent === message) el.textContent = '';
+                }, 4000);
+            }
+        }
+
+        function addStock() {
+            const nameInput = document.getElementById('stockName');
+            const qtyInput = document.getElementById('stockQuantity');
+            const name = nameInput.value.trim();
+            const quantity = parseInt(qtyInput.value, 10);
+            if (!name || !quantity || quantity < 1) {
+                showMessage('stockMessage', 'Enter a valid item name and quantity.');
+                return;
+            }
+            const existing = db.inventory.find(item => item.name.toLowerCase() === name.toLowerCase());
+            if (existing) {
+                existing.quantity += quantity;
+            } else {
+                db.inventory.push({ id: `inv_${Date.now()}`, name, quantity });
+            }
+            saveDB();
+            renderInventory();
+            nameInput.value = '';
+            qtyInput.value = '';
+            showMessage('stockMessage', 'Stock updated successfully.', '#15803d');
+        }
+
+        function submitStockRequest() {
+            const itemInput = document.getElementById('requestItem');
+            const qtyInput = document.getElementById('requestQty');
+            const item = itemInput.value.trim();
+            const quantity = parseInt(qtyInput.value, 10);
+            if (!item || !quantity || quantity < 1) {
+                showMessage('requestMessage', 'Enter a valid item and quantity.');
+                return;
+            }
+            const userName = currentUser.displayName || currentUser.email;
+            db.stockRequests.push({
+                id: `req_${Date.now()}`,
+                user: userName,
+                item,
+                quantity,
+                status: 'Pending',
+                date: new Date().toISOString()
+            });
+            saveDB();
+            renderRequests();
+            itemInput.value = '';
+            qtyInput.value = '';
+            showMessage('requestMessage', 'Your stock request was sent.', '#15803d');
+        }
+
+        function addToCart() {
+            const itemId = document.getElementById('selectItem').value;
+            const quantity = parseInt(document.getElementById('itemQty').value, 10);
+            if (!itemId || !quantity || quantity < 1) {
+                showMessage('billMessage', 'Choose an item and valid quantity.');
+                return;
+            }
+            const item = db.items.find(i => i.id === itemId);
+            if (!item) return;
+            const existing = currentCart.find(row => row.id === itemId);
+            if (existing) {
+                existing.quantity += quantity;
+            } else {
+                currentCart.push({ id: item.id, name: item.name, price: item.price, quantity });
+            }
+            renderCart();
+            showMessage('billMessage', 'Item added to bill.', '#15803d');
+        }
+
+        function clearBill() {
+            currentCart = [];
+            renderCart();
+            showMessage('billMessage', 'Bill cleared.');
+        }
+
+        async function getNextBillNumber() {
+            if (!database) {
+                return String(db.bills.length + 1).padStart(4, '0');
+            }
+            try {
+                const result = await database.ref('global/billCounter').transaction(current => {
+                    return (current || 0) + 1;
+                });
+                if (result && result.committed) {
+                    return String(result.snapshot.val()).padStart(4, '0');
+                }
+            } catch (error) {
+                console.error('Error updating bill counter:', error);
+            }
+            return String(db.bills.length + 1).padStart(4, '0');
+        }
+
+        async function saveBillRecord(billDetails) {
+            db.bills.push(billDetails);
+            await saveDB();
+        }
+
+        async function generatePdfBill() {
+            if (currentCart.length === 0) {
+                showMessage('billMessage', 'Add items before printing.');
+                return;
+            }
+            const date = new Date();
+            const dateStr = `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+            const totalAmount = currentCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            const userName = currentUser.displayName || currentUser.email;
+            const paymentMode = document.getElementById('paymentMode').value || 'Cash';
+            const customerName = document.getElementById('customerName').value.trim() || 'Walk-in Customer';
+            const customerMobile = document.getElementById('customerMobile').value.trim();
+            const billNo = await getNextBillNumber();
+            const billData = {
+                id: `bill_${Date.now()}`,
+                billNo,
+                user: userName,
+                customerName,
+                customerMobile,
+                date: date.toISOString(),
+                items: currentCart.map(item => ({ name: item.name, quantity: item.quantity, price: item.price })),
+                total: totalAmount,
+                paymentMode
+            };
+            saveBillRecord(billData);
+            const jsPDF = window.jspdf ? window.jspdf.jsPDF : null;
+            if (jsPDF) {
+                const doc = new jsPDF({ unit: 'pt' });
+                doc.setFont('courier', 'normal');
+                doc.setFontSize(16);
+                doc.text('GOVIND FOOD TRUCK', 40, 40);
+                doc.setFontSize(9);
+                doc.text(`Bill No: ${billNo}`, 40, 60);
+                doc.text(`Date: ${dateStr}`, 260, 60);
+                doc.text(`Customer: ${customerName}`, 40, 76);
+                doc.text(`Mobile: ${customerMobile || 'N/A'}`, 40, 92);
+                doc.text(`Cashier: ${userName}`, 260, 76);
+                doc.text(`Payment Mode: ${paymentMode}`, 260, 92);
+                doc.setLineWidth(0.5);
+                doc.line(40, 110, 540, 110);
+                doc.setFontSize(10);
+                doc.text('Item', 40, 130);
+                doc.text('Qty', 260, 130);
+                doc.text('Rate', 340, 130);
+                doc.text('Amount', 440, 130);
+                doc.line(40, 136, 540, 136);
+                let y = 154;
+                currentCart.forEach((line) => {
+                    doc.text(line.name, 40, y);
+                    doc.text(String(line.quantity), 260, y);
+                    doc.text(line.price.toFixed(2), 340, y);
+                    doc.text((line.price * line.quantity).toFixed(2), 440, y);
+                    y += 18;
+                });
+                y += 8;
+                doc.line(40, y, 540, y);
+                y += 18;
+                const gst = +(totalAmount * 0.05).toFixed(2);
+                doc.text(`Subtotal`, 340, y);
+                doc.text(totalAmount.toFixed(2), 440, y);
+                y += 18;
+                doc.text(`GST @ 5%`, 340, y);
+                doc.text(gst.toFixed(2), 440, y);
+                y += 18;
+                doc.setFontSize(12);
+                doc.text(`TOTAL`, 340, y);
+                doc.text((totalAmount + gst).toFixed(2), 440, y);
+                y += 28;
+                doc.setFontSize(10);
+                doc.text('Thanks for Visiting Govind Food Truck!', 40, y);
+                doc.text('@govind_food_truck', 40, y + 18);
+                doc.save(`Govind_Bill_${Date.now()}.pdf`);
+            } else {
+                window.print();
+            }
+            if (customerMobile) {
+                if (!sendWhatsAppBill(billData)) {
+                    showMessage('billMessage', 'Bill printed, but WhatsApp number looks invalid.', '#b91c1c');
+                }
+            }
+            currentCart = [];
+            document.getElementById('customerName').value = '';
+            document.getElementById('customerMobile').value = '';
+            renderCart();
+            renderBillHistory();
+            showMessage('billMessage', 'Bill printed and saved for admin.', '#15803d');
+        }
+
+        function sendWhatsAppBill(bill) {
+            const phone = bill.customerMobile.replace(/\D/g, '');
+            if (!phone || phone.length < 8) {
+                return false;
+            }
+            const itemsText = bill.items.map((item, index) => `${index + 1}. ${item.name}  Qty: ${item.quantity}  Rate: ₹${item.price.toFixed(2)}  Amount: ₹${(item.price * item.quantity).toFixed(2)}`).join('\n');
+            const message = `GOVIND FOOD TRUCK\nDLF street food court\nTelangana\n\nBill To: ${bill.customerName}\nMobile: ${bill.customerMobile}\nRef No: ${bill.billNo}\nDate of Issue: ${new Date(bill.date).toLocaleDateString()}\n\nSR  Name  Qty  Rate  Amount\n${itemsText}\n\nTotal Amount: ₹${bill.total.toFixed(2)}\nPayment Mode: ${bill.paymentMode}\n\nThank you for doing business with us.\nGOVIND FOOD TRUCK`;
+            const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+            window.open(url, '_blank');
+            return true;
+        }
+
+        function addMenuItem() {
+            const nameInput = document.getElementById('menuItemName');
+            const priceInput = document.getElementById('menuItemPrice');
+            const name = nameInput.value.trim();
+            const price = parseFloat(priceInput.value);
+            if (!name || !price || price <= 0) {
+                showMessage('billMessage', 'Enter valid menu item name and price.');
+                return;
+            }
+            db.items.push({ id: `item_${Date.now()}`, name, price });
+            saveDB();
+            nameInput.value = '';
+            priceInput.value = '';
+            renderMenu();
+            showMessage('billMessage', 'Menu item added successfully.', '#15803d');
+        }
+
+        function editMenuItem() {
+            const itemId = document.getElementById('selectItem').value;
+            if (!itemId) {
+                showMessage('billMessage', 'Select an item from the menu to edit.');
+                return;
+            }
+            const item = db.items.find(i => i.id === itemId);
+            if (!item) return;
+            document.getElementById('menuItemName').value = item.name;
+            document.getElementById('menuItemPrice').value = item.price;
+            editingMenuItem = item;
+            showMessage('billMessage', 'Edit the prices and click Update selected item.', '#15803d');
+        }
+
+        function saveMenuEdit() {
+            if (!editingMenuItem) {
+                showMessage('billMessage', 'Select an item first using the menu selector.');
+                return;
+            }
+            const nameInput = document.getElementById('menuItemName');
+            const priceInput = document.getElementById('menuItemPrice');
+            const name = nameInput.value.trim();
+            const price = parseFloat(priceInput.value);
+            if (!name || !price || price <= 0) {
+                showMessage('billMessage', 'Provide a valid name and price.');
+                return;
+            }
+            editingMenuItem.name = name;
+            editingMenuItem.price = price;
+            saveDB();
+            renderMenu();
+            nameInput.value = '';
+            priceInput.value = '';
+            editingMenuItem = null;
+            showMessage('billMessage', 'Menu item updated successfully.', '#15803d');
+        }
+
+        function sendSupportIssue() {
+            const messageInput = document.getElementById('supportMessageInput');
+            const text = messageInput.value.trim();
+            if (!text) {
+                showMessage('supportMessage', 'Describe your issue before sending.');
+                return;
+            }
+            const userName = currentUser.displayName || currentUser.email;
+            db.supportMessages.push({ id: `sup_${Date.now()}`, user: userName, text, date: new Date().toISOString() });
+            saveDB();
+            messageInput.value = '';
+            renderSupport();
+            showMessage('supportMessage', 'Your issue was sent to admin.', '#15803d');
+        }
+
+        function attemptLogin() {
+            const email = document.getElementById('loginName').value.trim();
+            const password = document.getElementById('loginPasskey').value.trim();
+            if (!email || !password) {
+                showMessage('loginMessage', 'Enter your email and password.');
+                return;
+            }
+            if (!firebaseInitialized) {
+                showMessage('loginMessage', 'Firebase is still loading. Please wait...');
+                return;
+            }
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then(async (userCredential) => {
+                    console.log("User logged in:", userCredential.user);
+                    db = await loadUserData(userCredential.user.uid);
+                    setUser(userCredential.user);
+                })
+                .catch((error) => {
+                    console.error("Login error:", error.message);
+                    showMessage('loginMessage', 'Invalid email or password.');
+                });
+        }
+
+        function attemptRegister() {
+            const name = document.getElementById('registerName').value.trim();
+            const email = document.getElementById('registerEmail').value.trim();
+            const password = document.getElementById('registerPassword').value;
+            if (!name || !email || !password) {
+                showMessage('registerMessage', 'Fill all fields before registering.');
+                return;
+            }
+            if (!firebaseInitialized) {
+                showMessage('registerMessage', 'Firebase is still loading. Please wait...');
+                return;
+            }
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then(async (userCredential) => {
+                    const user = userCredential.user;
+                    // Set display name
+                    await user.updateProfile({ displayName: name });
+                    // Initialize user data in database
+                    db = getDefaultDB();
+                    await firebase.database().ref(`users/${user.uid}`).set({
+                        ...db,
+                        email: user.email,
+                        name: name,
+                        role: 'user'
+                    });
+                    document.getElementById('registerName').value = '';
+                    document.getElementById('registerEmail').value = '';
+                    document.getElementById('registerPassword').value = '';
+                    showMessage('registerMessage', 'Registered successfully. Use login tab now.', '#15803d');
+                    setUser(null);
+                })
+                .catch((error) => {
+                    console.error("Registration error:", error.message);
+                    showMessage('registerMessage', 'Email already in use or error: ' + error.message);
+                });
+        }
+
+        function upgradeRole() {
+            const password = prompt('Enter role password:');
+            if (!password) return;
+            let newRole = null;
+            if (password === 'Ram') {
+                newRole = 'admin';
+            } else if (password === 'Shree Ram') {
+                newRole = 'user';
+            } else {
+                alert('Incorrect role password.');
+                return;
+            }
+            if (currentUser && newRole) {
+                database.ref(`users/${currentUser.uid}/role`).set(newRole).then(() => {
+                    db.role = newRole;
+                    updateRoleUI();
+                    alert(`Your role is now ${newRole}.`);
+                }).catch((error) => {
+                    console.error("Error updating role:", error);
+                });
+            }
+        }
+
+        document.getElementById('loginTab').addEventListener('click', () => {
+            document.getElementById('loginCard').classList.remove('hidden');
+            document.getElementById('registerCard').classList.add('hidden');
+            document.getElementById('loginTab').classList.add('active');
+            document.getElementById('registerTab').classList.remove('active');
+        });
+        document.getElementById('registerTab').addEventListener('click', () => {
+            document.getElementById('registerCard').classList.remove('hidden');
+            document.getElementById('loginCard').classList.add('hidden');
+            document.getElementById('registerTab').classList.add('active');
+            document.getElementById('loginTab').classList.remove('active');
+        });
+        document.getElementById('loginButton').addEventListener('click', attemptLogin);
+        document.getElementById('registerButton').addEventListener('click', attemptRegister);
+        document.getElementById('addStockButton').addEventListener('click', addStock);
+        document.getElementById('submitRequestButton').addEventListener('click', submitStockRequest);
+        document.getElementById('addToCartButton').addEventListener('click', addToCart);
+        document.getElementById('clearBillButton').addEventListener('click', clearBill);
+        document.getElementById('printBillButton').addEventListener('click', generatePdfBill);
+        document.getElementById('sendSupportButton').addEventListener('click', sendSupportIssue);
+        document.getElementById('upgradeButton').addEventListener('click', upgradeRole);
+        document.getElementById('logoutButton').addEventListener('click', () => {
+            firebase.auth().signOut().then(() => {
+                setUser(null);
+                console.log("User logged out");
+            }).catch((error) => {
+                console.error("Logout error:", error);
+            });
+        });
+        document.getElementById('addMenuItemButton').addEventListener('click', addMenuItem);
+        document.getElementById('saveMenuEditButton').addEventListener('click', saveMenuEdit);
+        document.getElementById('selectItem').addEventListener('dblclick', editMenuItem);
+
+        document.querySelectorAll('.nav-item').forEach(button => {
+            button.addEventListener('click', () => showSection(button.dataset.section));
+        });
+    </script>
+</body>
+</html>
