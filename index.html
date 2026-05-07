@@ -107,6 +107,16 @@
             border-radius: 16px;
             cursor: pointer;
         }
+        button.danger {
+            background: #dc2626;
+            border: none;
+            color: #fff;
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-weight: 700;
+        }
         .message {
             margin-top: 12px;
             min-height: 20px;
@@ -453,10 +463,12 @@
                             </div>
                             <div class="form-grid">
                                 <button class="primary" id="addMenuItemButton">Add item</button>
+                                <button class="secondary" id="editMenuItemButton">Edit items</button>
                                 <button class="secondary" id="saveMenuEditButton">Update selected item</button>
+                                <button class="danger" id="deleteMenuItemButton">Delete selected item</button>
                             </div>
                         </div>
-                        <div class="small-note">Admin can add or edit menu items that the user sees in billing.</div>
+                        <div class="small-note">Select an item in the billing dropdown, click Edit items, then update name/price or delete it.</div>
                     </div>
                     <div class="light-card">
                         <h3>Bill history</h3>
@@ -553,7 +565,10 @@
                 document.getElementById('appScreen').classList.add('active');
                 document.getElementById('userWelcome').textContent = `Hello, ${user.displayName || user.email}. Ready to go!`;
                 updateRoleUI();
-                document.getElementById('billingSection').querySelector('.small-note').textContent = 'Select items and print your bill from the available menu.';
+                const billingNote = document.querySelector('#billingSection .small-note');
+                if (billingNote) {
+                    billingNote.textContent = 'Select items and print your bill from the available menu.';
+                }
                 renderAll();
                 showSection(currentSection);
                 // Set up real-time listener for data changes
@@ -1029,14 +1044,42 @@
                 showMessage('billMessage', 'Provide a valid name and price.');
                 return;
             }
+            const editingItemId = editingMenuItem.id;
             editingMenuItem.name = name;
             editingMenuItem.price = price;
+            currentCart = currentCart.map(line => line.id === editingItemId ? { ...line, name, price } : line);
             saveDB();
             renderMenu();
+            renderCart();
             nameInput.value = '';
             priceInput.value = '';
             editingMenuItem = null;
             showMessage('billMessage', 'Menu item updated successfully.', '#15803d');
+        }
+
+        function deleteMenuItem() {
+            const itemId = document.getElementById('selectItem').value;
+            if (!itemId) {
+                showMessage('billMessage', 'Select an item from the menu to delete.');
+                return;
+            }
+            const itemIndex = db.items.findIndex(i => i.id === itemId);
+            if (itemIndex < 0) return;
+            const itemName = db.items[itemIndex].name;
+            if (!confirm(`Delete "${itemName}" from menu?`)) {
+                return;
+            }
+            db.items.splice(itemIndex, 1);
+            currentCart = currentCart.filter(line => line.id !== itemId);
+            if (editingMenuItem && editingMenuItem.id === itemId) {
+                editingMenuItem = null;
+                document.getElementById('menuItemName').value = '';
+                document.getElementById('menuItemPrice').value = '';
+            }
+            saveDB();
+            renderMenu();
+            renderCart();
+            showMessage('billMessage', `${itemName} removed from menu.`, '#15803d');
         }
 
         function sendSupportIssue() {
@@ -1137,28 +1180,37 @@
             }
         }
 
-        document.getElementById('loginTab').addEventListener('click', () => {
+        function bindClick(id, handler) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('click', handler);
+            }
+        }
+
+        bindClick('loginTab', () => {
             document.getElementById('loginCard').classList.remove('hidden');
             document.getElementById('registerCard').classList.add('hidden');
             document.getElementById('loginTab').classList.add('active');
             document.getElementById('registerTab').classList.remove('active');
         });
-        document.getElementById('registerTab').addEventListener('click', () => {
+
+        bindClick('registerTab', () => {
             document.getElementById('registerCard').classList.remove('hidden');
             document.getElementById('loginCard').classList.add('hidden');
             document.getElementById('registerTab').classList.add('active');
             document.getElementById('loginTab').classList.remove('active');
         });
-        document.getElementById('loginButton').addEventListener('click', attemptLogin);
-        document.getElementById('registerButton').addEventListener('click', attemptRegister);
-        document.getElementById('addStockButton').addEventListener('click', addStock);
-        document.getElementById('submitRequestButton').addEventListener('click', submitStockRequest);
-        document.getElementById('addToCartButton').addEventListener('click', addToCart);
-        document.getElementById('clearBillButton').addEventListener('click', clearBill);
-        document.getElementById('printBillButton').addEventListener('click', generatePdfBill);
-        document.getElementById('sendSupportButton').addEventListener('click', sendSupportIssue);
-        document.getElementById('upgradeButton').addEventListener('click', upgradeRole);
-        document.getElementById('logoutButton').addEventListener('click', () => {
+
+        bindClick('loginButton', attemptLogin);
+        bindClick('registerButton', attemptRegister);
+        bindClick('addStockButton', addStock);
+        bindClick('submitRequestButton', submitStockRequest);
+        bindClick('addToCartButton', addToCart);
+        bindClick('clearBillButton', clearBill);
+        bindClick('printBillButton', generatePdfBill);
+        bindClick('sendSupportButton', sendSupportIssue);
+        bindClick('upgradeButton', upgradeRole);
+        bindClick('logoutButton', () => {
             firebase.auth().signOut().then(() => {
                 setUser(null);
                 console.log("User logged out");
@@ -1166,9 +1218,15 @@
                 console.error("Logout error:", error);
             });
         });
-        document.getElementById('addMenuItemButton').addEventListener('click', addMenuItem);
-        document.getElementById('saveMenuEditButton').addEventListener('click', saveMenuEdit);
-        document.getElementById('selectItem').addEventListener('dblclick', editMenuItem);
+        bindClick('addMenuItemButton', addMenuItem);
+        bindClick('editMenuItemButton', editMenuItem);
+        bindClick('saveMenuEditButton', saveMenuEdit);
+        bindClick('deleteMenuItemButton', deleteMenuItem);
+
+        const selectItemElement = document.getElementById('selectItem');
+        if (selectItemElement) {
+            selectItemElement.addEventListener('dblclick', editMenuItem);
+        }
 
         document.querySelectorAll('.nav-item').forEach(button => {
             button.addEventListener('click', () => showSection(button.dataset.section));
