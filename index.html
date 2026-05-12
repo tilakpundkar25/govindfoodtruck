@@ -55,6 +55,9 @@
             font-weight: 600;
             transition: background 0.2s ease;
         }
+        .tab-button.hidden-tab {
+            display: none;
+        }
         .tab-button.active {
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: #fff;
@@ -70,6 +73,12 @@
             margin-top: 0;
             margin-bottom: 16px;
             color: var(--secondary);
+        }
+        .auth-section {
+            display: none;
+        }
+        .auth-section.active {
+            display: block;
         }
         .auth-field {
             display: grid;
@@ -135,8 +144,23 @@
             flex-direction: column;
             justify-content: space-between;
         }
+        .sidebar .logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .sidebar .logo-img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 6px;
+        }
         .sidebar .logo {
-            font-size: 1.45rem;
+            font-size: 0.95rem;
             font-weight: 800;
             letter-spacing: 0.05em;
             margin-bottom: 14px;
@@ -276,10 +300,6 @@
 </head>
 <body>
     <div class="login-screen active" id="loginScreen">
-        <div class="tabs">
-            <button class="tab-button active" id="loginTab">Login</button>
-            <button class="tab-button" id="registerTab">Register</button>
-        </div>
         <div class="auth-layout">
             <div class="auth-card" id="loginCard">
                 <h2>Welcome back to Govind Food Truck</h2>
@@ -294,30 +314,16 @@
                 <button class="primary" id="loginButton">Log In</button>
                 <div class="message" id="loginMessage"></div>
             </div>
-            <div class="auth-card hidden" id="registerCard">
-                <h2>Create a new account</h2>
-                <div class="auth-field">
-                    <label for="registerName">Full Name</label>
-                    <input id="registerName" type="text" placeholder="Your full name" />
-                </div>
-                <div class="auth-field">
-                    <label for="registerEmail">Email</label>
-                    <input id="registerEmail" type="email" placeholder="yourname@gmail.com" />
-                </div>
-                <div class="auth-field">
-                    <label for="registerPassword">Password</label>
-                    <input id="registerPassword" type="password" placeholder="Choose a strong password" />
-                </div>
-                <button class="primary" id="registerButton">Register</button>
-                <div class="message" id="registerMessage"></div>
-            </div>
         </div>
     </div>
     <div class="app-screen" id="appScreen">
         <div class="app-shell">
             <aside class="sidebar">
                 <div>
-                    <div class="logo">Govind Food Truck</div>
+                    <div class="logo-container">
+                        <img src="./photos/logo.png" alt="Govind Food Truck Logo" class="logo-img" />
+                        <div class="logo">Govind Food Truck</div>
+                    </div>
                     <div class="user-welcome" id="userWelcome">Good to see you.</div>
                     <div class="nav-items" id="navItems">
                         <div class="nav-item active" data-section="inventorySection">Inventory</div>
@@ -605,6 +611,47 @@
         waitForFirebase();
     </script>
     <script>
+        let logoDataUrl = null;
+        
+        // Load logo once on page start
+        function loadLogoForPdf() {
+            if (logoDataUrl) return;
+            const logoImg = document.querySelector('.logo-img');
+            if (logoImg && logoImg.complete) {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = logoImg.naturalWidth;
+                    canvas.height = logoImg.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(logoImg, 0, 0);
+                    logoDataUrl = canvas.toDataURL('image/png');
+                } catch (e) {
+                    console.log('Could not convert logo to data URL');
+                }
+            }
+        }
+        
+        // Load logo from file
+        async function loadLogoAsync() {
+            if (logoDataUrl) return logoDataUrl;
+            try {
+                const response = await fetch('./photos/logo.png');
+                if (!response.ok) throw new Error('Failed to fetch logo');
+                const blob = await response.blob();
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        logoDataUrl = e.target.result;
+                        resolve(logoDataUrl);
+                    };
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) {
+                console.log('Could not load logo from file:', e);
+                return null;
+            }
+        }
+        
         // Load default database structure
         function getDefaultDB() {
             return {
@@ -928,54 +975,77 @@
             const jsPDF = window.jspdf ? window.jspdf.jsPDF : null;
             if (jsPDF) {
                 const doc = new jsPDF({ unit: 'pt' });
-                doc.setFont('courier', 'normal');
-                doc.setFontSize(16);
-                doc.text('GOVIND FOOD TRUCK', 40, 40);
-                doc.setFontSize(9);
-                doc.text(`Bill No: ${billNo}`, 40, 60);
-                doc.text(`Date: ${dateStr}`, 260, 60);
-                doc.text(`Customer: ${customerName}`, 40, 76);
-                doc.text(`Mobile: ${customerMobile || 'N/A'}`, 40, 92);
-                doc.text(`Cashier: ${userName}`, 260, 76);
-                doc.text(`Payment Mode: ${paymentMode}`, 260, 92);
-                doc.setLineWidth(0.5);
-                doc.line(40, 110, 540, 110);
-                doc.setFontSize(10);
-                doc.text('Item', 40, 130);
-                doc.text('Qty', 260, 130);
-                doc.text('Rate', 340, 130);
-                doc.text('Amount', 440, 130);
-                doc.line(40, 136, 540, 136);
-                let y = 154;
-                currentCart.forEach((line) => {
-                    doc.text(line.name, 40, y);
-                    doc.text(String(line.quantity), 260, y);
-                    doc.text(line.price.toFixed(2), 340, y);
-                    doc.text((line.price * line.quantity).toFixed(2), 440, y);
-                    y += 18;
-                });
-                y += 8;
-                doc.line(40, y, 540, y);
-                y += 18;
-                const gst = +(totalAmount * 0.05).toFixed(2);
-                doc.text(`Subtotal`, 340, y);
-                doc.text(totalAmount.toFixed(2), 440, y);
-                y += 18;
-                doc.text(`GST @ 5%`, 340, y);
-                doc.text(gst.toFixed(2), 440, y);
-                y += 18;
-                doc.setFontSize(12);
-                doc.text(`TOTAL`, 340, y);
-                doc.text((totalAmount + gst).toFixed(2), 440, y);
-                y += 28;
-                doc.setFontSize(10);
-                doc.text('Thanks for Visiting Govind Food Truck!', 40, y);
-                doc.text('@govind_food_truck', 40, y + 18);
-                doc.save(`Govind_Bill_${Date.now()}.pdf`);
+                
+                // Try to load logo
+                loadLogoForPdf();
+                const logoToUse = await loadLogoAsync();
+                
+                // Add logo if available - positioned in the middle top
+                if (logoToUse) {
+                    try {
+                        doc.addImage(logoToUse, 'PNG', 180, 8, 130, 35);
+                    } catch (err) {
+                        console.log('Could not add logo to PDF:', err);
+                    }
+                }
+                finalizePdfBill(doc, billNo, dateStr, customerName, customerMobile, userName, paymentMode, totalAmount, billData);
             } else {
                 window.print();
+                if (customerMobile) {
+                    if (!sendWhatsAppBill(billData)) {
+                        showMessage('billMessage', 'Bill printed, but WhatsApp number looks invalid.', '#b91c1c');
+                    }
+                }
             }
-            if (customerMobile) {
+        }
+        
+        function finalizePdfBill(doc, billNo, dateStr, customerName, customerMobile, userName, paymentMode, totalAmount, billData) {
+            doc.setFont('courier', 'normal');
+            doc.setFontSize(16);
+            doc.text('GOVIND FOOD TRUCK', 40, 60);
+            doc.setFontSize(9);
+            doc.text(`Bill No: ${billNo}`, 40, 80);
+            doc.text(`Date: ${dateStr}`, 260, 80);
+            doc.text(`Customer: ${customerName}`, 40, 96);
+            doc.text(`Mobile: ${customerMobile || 'N/A'}`, 40, 112);
+            doc.text(`Cashier: ${userName}`, 260, 96);
+            doc.text(`Payment Mode: ${paymentMode}`, 260, 112);
+            doc.setLineWidth(0.5);
+            doc.line(40, 130, 540, 130);
+            doc.setFontSize(10);
+            doc.text('Item', 40, 150);
+            doc.text('Qty', 260, 150);
+            doc.text('Rate', 340, 150);
+            doc.text('Amount', 440, 150);
+            doc.line(40, 156, 540, 156);
+            let y = 174;
+            currentCart.forEach((line) => {
+                doc.text(line.name, 40, y);
+                doc.text(String(line.quantity), 260, y);
+                doc.text(line.price.toFixed(2), 340, y);
+                doc.text((line.price * line.quantity).toFixed(2), 440, y);
+                y += 18;
+            });
+            y += 8;
+            doc.line(40, y, 540, y);
+            y += 18;
+            const gst = +(totalAmount * 0.05).toFixed(2);
+            doc.text(`Subtotal`, 340, y);
+            doc.text(totalAmount.toFixed(2), 440, y);
+            y += 18;
+            doc.text(`GST @ 5%`, 340, y);
+            doc.text(gst.toFixed(2), 440, y);
+            y += 18;
+            doc.setFontSize(12);
+            doc.text(`TOTAL`, 340, y);
+            doc.text((totalAmount + gst).toFixed(2), 440, y);
+            y += 28;
+            doc.setFontSize(10);
+            doc.text('Thanks for Visiting Govind Food Truck!', 40, y);
+            doc.text('@govind_food_truck', 40, y + 18);
+            doc.save(`Govind_Bill_${Date.now()}.pdf`);
+            
+            if (billData.customerMobile) {
                 if (!sendWhatsAppBill(billData)) {
                     showMessage('billMessage', 'Bill printed, but WhatsApp number looks invalid.', '#b91c1c');
                 }
@@ -1187,22 +1257,7 @@
             }
         }
 
-        bindClick('loginTab', () => {
-            document.getElementById('loginCard').classList.remove('hidden');
-            document.getElementById('registerCard').classList.add('hidden');
-            document.getElementById('loginTab').classList.add('active');
-            document.getElementById('registerTab').classList.remove('active');
-        });
-
-        bindClick('registerTab', () => {
-            document.getElementById('registerCard').classList.remove('hidden');
-            document.getElementById('loginCard').classList.add('hidden');
-            document.getElementById('registerTab').classList.add('active');
-            document.getElementById('loginTab').classList.remove('active');
-        });
-
         bindClick('loginButton', attemptLogin);
-        bindClick('registerButton', attemptRegister);
         bindClick('addStockButton', addStock);
         bindClick('submitRequestButton', submitStockRequest);
         bindClick('addToCartButton', addToCart);
@@ -1213,6 +1268,8 @@
         bindClick('logoutButton', () => {
             firebase.auth().signOut().then(() => {
                 setUser(null);
+                document.getElementById('loginName').value = '';
+                document.getElementById('loginPasskey').value = '';
                 console.log("User logged out");
             }).catch((error) => {
                 console.error("Logout error:", error);
@@ -1230,6 +1287,14 @@
 
         document.querySelectorAll('.nav-item').forEach(button => {
             button.addEventListener('click', () => showSection(button.dataset.section));
+        });
+
+        // Add Enter key support for login form
+        document.getElementById('loginName').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') attemptLogin();
+        });
+        document.getElementById('loginPasskey').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') attemptLogin();
         });
     </script>
 </body>
